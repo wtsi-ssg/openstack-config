@@ -1,0 +1,235 @@
+description: OpenStack ceph storage node configured by Puppet
+heat_template_version: 2015-04-30
+outputs:
+  config_identifier:
+    description: identifier which changes if the node configuration may need re-applying
+    value:
+      get_attr:
+      - CephStorageDeployment
+      - deploy_stdout
+  hosts_entry:
+    value:
+      str_replace:
+        params:
+          HOST:
+            get_attr:
+            - CephStorage
+            - name
+          IP:
+            get_attr:
+            - NetIpMap
+            - net_ip_map
+            - get_param:
+              - ServiceNetMap
+              - CephStorageHostnameResolveNetwork
+        template: IP HOST.localdomain HOST
+  nova_server_resource:
+    description: Heat resource handle for the ceph storage server
+    value:
+      get_resource: CephStorage
+  storage_ip_address:
+    description: IP address of the server in the storage network
+    value:
+      get_attr:
+      - StoragePort
+      - ip_address
+  storage_mgmt_ip_address:
+    description: IP address of the server in the storage_mgmt network
+    value:
+      get_attr:
+      - StorageMgmtPort
+      - ip_address
+parameters:
+  EnablePackageInstall:
+    default: 'false'
+    description: Set to true to enable package installation via Puppet
+    type: boolean
+  Flavor:
+    constraints:
+    - custom_constraint: nova.flavor
+    description: Flavor for the Ceph Storage node.
+    type: string
+  Hostname:
+    default: ''
+    type: string
+  Image:
+    constraints:
+    - custom_constraint: glance.image
+    default: overcloud-ceph-storage
+    type: string
+  ImageUpdatePolicy:
+    default: REBUILD_PRESERVE_EPHEMERAL
+    description: What policy to use when reconstructing instances. REBUILD for rebuilds,
+      REBUILD_PRESERVE_EPHEMERAL to preserve /mnt.
+    type: string
+  KeyName:
+    constraints:
+    - custom_constraint: nova.keypair
+    default: default
+    description: Name of an existing EC2 KeyPair to enable SSH access to the instances
+    type: string
+  NtpServer:
+    default: ''
+    type: string
+  ServiceNetMap:
+    default: {}
+    description: Mapping of service_name -> network name. Typically set via parameter_defaults
+      in the resource registry.
+    type: json
+  UpdateIdentifier:
+    default: ''
+    description: 'Setting to a previously unused value during stack-update will trigger
+      package update on all nodes
+
+      '
+    type: string
+resources:
+  CephStorage:
+    properties:
+      flavor:
+        get_param: Flavor
+      image:
+        get_param: Image
+      image_update_policy:
+        get_param: ImageUpdatePolicy
+      key_name:
+        get_param: KeyName
+      name:
+        get_param: Hostname
+      networks:
+      - network: ctlplane
+      user_data:
+        get_resource: NodeUserData
+      user_data_format: SOFTWARE_CONFIG
+    type: OS::Nova::Server
+  CephStorageConfig:
+    properties:
+      config:
+        hiera:
+          datafiles:
+            ceph:
+              mapped_data:
+                ceph::profile::params::cluster_network:
+                  get_input: ceph_cluster_network
+                ceph::profile::params::public_network:
+                  get_input: ceph_public_network
+                enable_package_install:
+                  get_input: enable_package_install
+                ntp::servers:
+                  get_input: ntp_servers
+              raw_data:
+                get_file: hieradata/ceph.yaml
+            common:
+              raw_data:
+                get_file: hieradata/common.yaml
+          hierarchy:
+          - heat_config_%{::deploy_config_name}
+          - ceph_cluster
+          - ceph
+          - RedHat
+          - common
+      group: os-apply-config
+    type: OS::Heat::StructuredConfig
+  CephStorageDeployment:
+    depends_on: NetworkDeployment
+    properties:
+      config:
+        get_resource: CephStorageConfig
+      input_values:
+        ceph_cluster_network:
+          get_attr:
+          - NetIpSubnetMap
+          - net_ip_map
+          - get_param:
+            - ServiceNetMap
+            - CephClusterNetwork
+        ceph_public_network:
+          get_attr:
+          - NetIpSubnetMap
+          - net_ip_map
+          - get_param:
+            - ServiceNetMap
+            - CephPublicNetwork
+        enable_package_install:
+          get_param: EnablePackageInstall
+        ntp_servers:
+          str_replace:
+            params:
+              server:
+                get_param: NtpServer
+            template: '["server"]'
+      server:
+        get_resource: CephStorage
+    type: OS::Heat::StructuredDeployment
+  NetIpMap:
+    properties:
+      StorageIp:
+        get_attr:
+        - StoragePort
+        - ip_address
+      StorageMgmtIp:
+        get_attr:
+        - StorageMgmtPort
+        - ip_address
+    type: OS::TripleO::Network::Ports::NetIpMap
+  NetIpSubnetMap:
+    properties:
+      StorageIp:
+        get_attr:
+        - StoragePort
+        - ip_subnet
+      StorageMgmtIp:
+        get_attr:
+        - StorageMgmtPort
+        - ip_subnet
+    type: OS::TripleO::Network::Ports::NetIpMap
+  NetworkConfig:
+    properties:
+      StorageIpSubnet:
+        get_attr:
+        - StoragePort
+        - ip_subnet
+      StorageMgmtIpSubnet:
+        get_attr:
+        - StorageMgmtPort
+        - ip_subnet
+    type: OS::TripleO::CephStorage::Net::SoftwareConfig
+  NetworkDeployment:
+    properties:
+      config:
+        get_resource: NetworkConfig
+      server:
+        get_resource: CephStorage
+    type: OS::TripleO::SoftwareDeployment
+  NodeUserData:
+    type: OS::TripleO::NodeUserData
+  StorageMgmtPort:
+    properties:
+      ControlPlaneIP:
+        get_attr:
+        - CephStorage
+        - networks
+        - ctlplane
+        - 0
+    type: OS::TripleO::CephStorage::Ports::StorageMgmtPort
+  StoragePort:
+    properties:
+      ControlPlaneIP:
+        get_attr:
+        - CephStorage
+        - networks
+        - ctlplane
+        - 0
+    type: OS::TripleO::CephStorage::Ports::StoragePort
+  UpdateConfig:
+    type: OS::TripleO::Tasks::PackageUpdate
+  UpdateDeployment:
+    properties:
+      config:
+        get_resource: UpdateConfig
+      input_values:
+        update_identifier:
+          get_param: UpdateIdentifier
+      server:
+        get_resource: CephStorage
+    type: OS::Heat::SoftwareDeployment

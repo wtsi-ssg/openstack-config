@@ -1,0 +1,32 @@
+resource_registry:
+  OS::TripleO::BlockStorage::Net::SoftwareConfig: /home/stack/templates/nic-configs/cinder-storage.yaml
+  OS::TripleO::Compute::Net::SoftwareConfig: /home/stack/templates/nic-configs/compute.yaml
+  OS::TripleO::Controller::Net::SoftwareConfig: /home/stack/templates/nic-configs/controller.yaml
+  OS::TripleO::ObjectStorage::Net::SoftwareConfig: /home/stack/templates/nic-configs/swift-storage.yaml
+  OS::TripleO::CephStorage::Net::SoftwareConfig: /home/stack/templates/nic-configs/ceph-storage.yaml
+
+parameters:
+  # Set to "br-ex" if using floating IPs on native VLAN on bridge br-ex
+  Controller-1::NeutronExternalNetworkBridge: "''"
+
+parameter_defaults:
+  ExternalAllocationPools: [{'start': '172.31.0.17', 'end': '172.31.0.254'}]
+  ExternalInterfaceDefaultRoute: 172.31.0.1
+  ExternalNetCidr: 172.31.0.0/24
+  ExternalNetworkVlanID: 100
+  InternalApiAllocationPools: [{'start': '172.31.1.17', 'end': '172.31.1.254'}]
+  InternalApiNetCidr: 172.31.1.0/24
+  InternalNetworkVlanID: 101
+  StorageAllocationPools: [{'start': '172.31.2.17', 'end': '172.31.2.254'}]
+  StorageNetCidr: 172.31.2.0/24
+  StorageNetworkVlanID: 104
+  StorageMgmtAllocationPools: [{'start': '172.31.3.17', 'end': '172.31.3.254'}]
+  StorageMgmtNetCidr: 172.31.3.0/24
+  StorageMgmtNetworkVlanID: 105
+  TenantAllocationPools: [{'start': '172.22.208.17', 'end': '172.22.208.254'}]
+  TenantNetCidr: 172.22.208.0/20
+  TenantNetworkVlanID: 103
+  # Customize bonding options if required (will be ignored if bonds are not used)
+  # BondInterfaceOvsOptions:
+  #     "bond_mode=balance-tcp lacp=active other-config:lacp-fallback-ab=true"
+

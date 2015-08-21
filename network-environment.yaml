@@ -10,7 +10,7 @@ parameters:
   Controller-1::NeutronExternalNetworkBridge: "''"
 
 parameter_defaults:
-  ExternalAllocationPools: [{'start': '172.31.0.18', 'end': '172.31.0.254'}]
+  ExternalAllocationPools: [{'start': '172.31.0.18', 'end': '172.31.0.50'}]
   ExternalInterfaceDefaultRoute: 172.31.0.1
   ExternalNetCidr: 172.31.0.0/24
   ExternalNetworkVlanID: 100

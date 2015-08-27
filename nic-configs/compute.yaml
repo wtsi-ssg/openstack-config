@@ -6,7 +6,7 @@ description: >
 
 parameters:
   ExternalIpSubnet:
-    default: ''
+    default: '172.31.0.9/24'
     description: IP address/subnet on the external network
     type: string
   InternalApiIpSubnet:

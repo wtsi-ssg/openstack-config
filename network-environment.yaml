@@ -8,6 +8,10 @@ resource_registry:
 parameters:
   # Set to "br-ex" if using floating IPs on native VLAN on bridge br-ex
   Controller-1::NeutronExternalNetworkBridge: "br-ex"
+  Compute-1::NeutronNetworkType: vxlan
+  Compute-1::NeutronTunnelTypes: vxlan
+  Controller-1::NeutronNetworkType: vxlan
+  Controller-1::NeutronTunnelTypes: vxlan
 
 parameter_defaults:
   ExternalAllocationPools: [{'start': '172.31.0.18', 'end': '172.31.0.50'}]

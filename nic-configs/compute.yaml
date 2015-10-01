@@ -6,39 +6,39 @@ description: >
 
 parameters:
   ExternalIpSubnet:
-    default: '172.31.0.9/24'
+    default: ''
     description: IP address/subnet on the external network
     type: string
   InternalApiIpSubnet:
-    default: '172.31.1.0/24'
+    default: ''
     description: IP address/subnet on the internal API network
     type: string
   StorageIpSubnet:
-    default: '172.31.2.0/24'
+    default: ''
     description: IP address/subnet on the storage network
     type: string
   StorageMgmtIpSubnet:
-    default: '172.31.3.0/24'
+    default: ''
     description: IP address/subnet on the storage mgmt network
     type: string
   TenantIpSubnet:
-    default: '172.22.208.0/20'
+    default: ''
     description: IP address/subnet on the tenant network
     type: string
   InternalApiNetworkVlanID:
-    default: 101
+    default: 
     description: Vlan ID for the internal_api network traffic.
     type: number
   StorageNetworkVlanID:
-    default: 104
+    default: 
     description: Vlan ID for the storage network traffic.
     type: number
   TenantNetworkVlanID:
-    default: 103
+    default: 
     description: Vlan ID for the tenant network traffic.
     type: number
   ExternalInterfaceDefaultRoute:
-    default: '172.31.0.1'
+    default: ''
     description: default route for the external network
     type: string
 

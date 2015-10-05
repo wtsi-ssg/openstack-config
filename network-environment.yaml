@@ -7,10 +7,17 @@ resource_registry:
 
 parameters:
   # Set to "br-ex" if using floating IPs on native VLAN on bridge br-ex
-  Controller-1::NeutronExternalNetworkBridge: "br-ex"
+  Controller-1::NeutronExternalNetworkBridge: "br-eth1"
+  #
+  Compute-1::NeutronBridgeMappings: datacentre:br-ex,br-eth1:br-eth1
+  Compute-1::NeutronFlatNetworks: datacentre,br-eth1
   Compute-1::NeutronNetworkType: vxlan
+  Compute-1::NeutronNetworkVLANRanges: datacentre:1:1000,br-eth1:108:108
   Compute-1::NeutronTunnelTypes: vxlan
+  Controller-1::NeutronBridgeMappings: datacentre:br-ex,br-eth1:br-eth1
+  Controller-1::NeutronFlatNetworks: datacentre,br-eth1
   Controller-1::NeutronNetworkType: vxlan
+  Controller-1::NeutronNetworkVLANRanges: datacentre:1:1000,br-eth1:108:108
   Controller-1::NeutronTunnelTypes: vxlan
 
 parameter_defaults:
@@ -33,4 +40,3 @@ parameter_defaults:
   # Customize bonding options if required (will be ignored if bonds are not used)
   # BondInterfaceOvsOptions:
   #     "bond_mode=balance-tcp lacp=active other-config:lacp-fallback-ab=true"
-

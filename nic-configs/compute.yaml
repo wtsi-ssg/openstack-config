@@ -25,6 +25,10 @@ parameters:
     default: '172.22.208.0/20'
     description: IP address/subnet on the tenant network
     type: string
+  ExternalNetworkVlanID:
+    default: 100
+    description: Vlan ID for the external network traffic.
+    type: number
   InternalApiNetworkVlanID:
     default: 101
     description: Vlan ID for the internal_api network traffic.
@@ -78,14 +82,22 @@ resources:
                   addresses:
                   -
                     ip_netmask: {get_param: TenantIpSubnet}
-            - type: interface
-              name: nic2
+            -
+              type: ovs_bridge
+              name: br-eth1
               use_dhcp: false
-              addresses:
-                - ip_netmask: {get_param: ExternalIpSubnet}
-              routes:
-                - ip_netmask: 0.0.0.0/0
-                  next_hop: {get_param: ExternalInterfaceDefaultRoute}
+              members:
+                -
+                  type: vlan
+                  vlan_id: {get_param: ExternalNetworkVlanID}
+                  addresses:
+                  -
+                    ip_netmask: {get_param: ExternalIpSubnet}
+                -
+                  type: interface
+                  name: nic2
+                  # force the MAC address of the bridge to this interface
+                  primary: true
 
 outputs:
   OS::stack_id:

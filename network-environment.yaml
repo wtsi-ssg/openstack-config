@@ -7,7 +7,7 @@ resource_registry:
 
 parameters:
   # Set to "br-ex" if using floating IPs on native VLAN on bridge br-ex
-  Controller-1::NeutronExternalNetworkBridge: "br-eth1"
+  Controller-1::NeutronExternalNetworkBridge: "''"
   #
   Compute-1::NeutronBridgeMappings: datacentre:br-ex,br-eth1:br-eth1
   Compute-1::NeutronFlatNetworks: datacentre,br-eth1

@@ -27,7 +27,7 @@ parameter_defaults:
   ExternalNetworkVlanID: 100
   InternalApiAllocationPools: [{'start': '172.31.1.18', 'end': '172.31.1.254'}]
   InternalApiNetCidr: 172.31.1.0/24
-  InternalNetworkVlanID: 101
+  InternalApiNetworkVlanID: 101
   StorageAllocationPools: [{'start': '172.31.2.18', 'end': '172.31.2.254'}]
   StorageNetCidr: 172.31.2.0/24
   StorageNetworkVlanID: 104

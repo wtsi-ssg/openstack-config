@@ -1,0 +1,30 @@
+resource_registry:
+  OS::TripleO::BlockStorage::Net::SoftwareConfig: /home/stack/templates/my-overcloud/network/config/single-nic-vlans/cinder-storage.yaml
+  OS::TripleO::Compute::Net::SoftwareConfig: /home/stack/templates/my-overcloud/network/config/single-nic-vlans/compute.yaml
+  OS::TripleO::Controller::Net::SoftwareConfig: /home/stack/templates/my-overcloud/network/config/single-nic-vlans/controller.yaml
+  OS::TripleO::ObjectStorage::Net::SoftwareConfig: /home/stack/templates/my-overcloud/network/config/single-nic-vlans/swift-storage.yaml
+  OS::TripleO::CephStorage::Net::SoftwareConfig: /home/stack/templates/my-overcloud/network/config/single-nic-vlans/ceph-storage.yaml
+
+parameter_defaults:
+  ExternalAllocationPools: [{'start': '', 'end': ''}]
+  ExternalInterfaceDefaultRoute: 
+  ExternalNetCidr: 
+  ExternalNetworkVlanID: 
+  InternalApiAllocationPools: [{'start': '', 'end': ''}]
+  InternalApiNetCidr: 
+  InternalApiNetworkVlanID: 
+  StorageAllocationPools: [{'start': '', 'end': ''}]
+  StorageNetCidr: 
+  StorageNetworkVlanID: 
+  StorageMgmtAllocationPools: [{'start': '', 'end': ''}]
+  StorageMgmtNetCidr: 
+  StorageMgmtNetworkVlanID: 
+  TenantAllocationPools: [{'start': '', 'end': ''}]
+  TenantNetCidr: 
+  TenantNetworkVlanID: 
+  #
+  NeutronExternalNetworkBridge: "''"
+  NeutronBridgeMappings: 
+  NeutronNetworkType: vxlan
+  NeutronNetworkVLANRanges: 
+  NeutronTunnelTypes: vxlan

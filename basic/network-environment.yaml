@@ -20,7 +20,7 @@ parameter_defaults:
   ExternalNetworkVlanID: 
   InternalApiAllocationPools: [{'start': '', 'end': ''}]
   InternalApiNetCidr: 
-  InternalNetworkVlanID: 
+  InternalApiNetworkVlanID: 
   StorageAllocationPools: [{'start': '', 'end': ''}]
   StorageNetCidr: 
   StorageNetworkVlanID: 

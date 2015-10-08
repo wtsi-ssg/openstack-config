@@ -73,20 +73,23 @@ resources:
   NetworkConfig:
     type: OS::TripleO::CephStorage::Net::SoftwareConfig
     properties:
+      ControlPlaneIp: {get_attr: [CephStorage, networks, ctlplane, 0]}
       StorageIpSubnet: {get_attr: [StoragePort, ip_subnet]}
       StorageMgmtIpSubnet: {get_attr: [StorageMgmtPort, ip_subnet]}
 
   NetIpMap:
     type: OS::TripleO::Network::Ports::NetIpMap
     properties:
+      ControlPlaneIp: {get_attr: [CephStorage, networks, ctlplane, 0]}
       StorageIp: {get_attr: [StoragePort, ip_address]}
       StorageMgmtIp: {get_attr: [StorageMgmtPort, ip_address]}
 
   NetIpSubnetMap:
-    type: OS::TripleO::Network::Ports::NetIpMap
+    type: OS::TripleO::Network::Ports::NetIpSubnetMap
     properties:
-      StorageIp: {get_attr: [StoragePort, ip_subnet]}
-      StorageMgmtIp: {get_attr: [StorageMgmtPort, ip_subnet]}
+      ControlPlaneIp: {get_attr: [CephStorage, networks, ctlplane, 0]}
+      StorageIpSubnet: {get_attr: [StoragePort, ip_subnet]}
+      StorageMgmtIpSubnet: {get_attr: [StorageMgmtPort, ip_subnet]}
 
   NetworkDeployment:
     type: OS::TripleO::SoftwareDeployment
@@ -107,8 +110,9 @@ resources:
             params:
               server: {get_param: NtpServer}
         enable_package_install: {get_param: EnablePackageInstall}
-        ceph_cluster_network: {get_attr: [NetIpSubnetMap, net_ip_map, {get_param: [ServiceNetMap, CephClusterNetwork]}]}
-        ceph_public_network: {get_attr: [NetIpSubnetMap, net_ip_map, {get_param: [ServiceNetMap, CephPublicNetwork]}]}
+        enable_package_upgrade: {get_attr: [UpdateDeployment, update_managed_packages]}
+        ceph_cluster_network: {get_attr: [NetIpSubnetMap, net_ip_subnet_map, {get_param: [ServiceNetMap, CephClusterNetwork]}]}
+        ceph_public_network: {get_attr: [NetIpSubnetMap, net_ip_subnet_map, {get_param: [ServiceNetMap, CephPublicNetwork]}]}
 
   CephStorageConfig:
     type: OS::Heat::StructuredConfig
@@ -117,6 +121,7 @@ resources:
       config:
         hiera:
           hierarchy:
+            - '"%{::uuid}"'
             - heat_config_%{::deploy_config_name}
             - ceph_cluster # provided by CephClusterConfig
             - ceph
@@ -129,9 +134,18 @@ resources:
               raw_data: {get_file: hieradata/ceph.yaml}
               mapped_data:
                 ntp::servers: {get_input: ntp_servers}
-                enable_package_install: {get_input: enable_package_install}
+                tripleo::packages::enable_install: {get_input: enable_package_install}
+                tripleo::packages::enable_upgrade: {get_input: enable_package_upgrade}
                 ceph::profile::params::cluster_network: {get_input: ceph_cluster_network}
                 ceph::profile::params::public_network: {get_input: ceph_public_network}
+
+  # Hook for site-specific additional pre-deployment config,
+  # applying to all nodes, e.g node registration/unregistration
+  NodeExtraConfig:
+    depends_on: CephStorageDeployment
+    type: OS::TripleO::NodeExtraConfig
+    properties:
+        server: {get_resource: CephStorage}
 
   UpdateConfig:
     type: OS::TripleO::Tasks::PackageUpdate
@@ -165,4 +179,8 @@ outputs:
     value: {get_attr: [StorageMgmtPort, ip_address]}
   config_identifier:
     description: identifier which changes if the node configuration may need re-applying
-    value: {get_attr: [CephStorageDeployment, deploy_stdout]}
+    value:
+      list_join:
+        - ','
+        - - {get_attr: [CephStorageDeployment, deploy_stdout]}
+          - {get_param: UpdateIdentifier}

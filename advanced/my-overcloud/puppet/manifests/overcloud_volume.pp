@@ -13,16 +13,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-if str2bool(hiera('disable_package_install', 'false')) {
-  case $::osfamily {
-    'RedHat': {
-      Package { provider => 'norpm' } # provided by tripleo-puppet
-    }
-    default: {
-      warning('disable_package_install option not supported.')
-    }
-  }
-}
+include tripleo::packages
 
 create_resources(sysctl::value, hiera('sysctl_settings'), {})
 
@@ -60,3 +51,5 @@ class { 'snmp':
   agentaddress => ['udp:161','udp6:[::1]:161'],
   snmpd_config => [ join(['rouser ', hiera('snmpd_readonly_user_name')]), 'proc  cron', 'includeAllDisks  10%', 'master agentx', 'trapsink localhost public', 'iquerySecName internalUser', 'rouser internalUser', 'defaultMonitors yes', 'linkUpDownNotifications yes' ],
 }
+
+package_manifest{'/var/lib/tripleo/installed-packages/overcloud_volume': ensure => present}

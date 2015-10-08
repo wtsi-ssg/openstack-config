@@ -102,9 +102,12 @@ parameters:
     default: default
     constraints:
       - custom_constraint: nova.keypair
-  KeystoneHost:
+  KeystoneAdminApiVirtualIP:
     type: string
     default: ''
+  KeystonePublicApiVirtualIP:
+     type: string
+     default: ''
   NeutronBridgeMappings:
     description: >
       The OVS logical->physical bridge mappings to use. See the Neutron
@@ -129,7 +132,7 @@ parameters:
   NeutronNetworkType:
     type: string
     description: The tenant network type for Neutron, either gre or vxlan.
-    default: 'gre'
+    default: 'vxlan'
   NeutronNetworkVLANRanges:
     default: 'datacentre'
     description: >
@@ -155,7 +158,7 @@ parameters:
     description: |
         The tunnel types for the Neutron tenant network. To specify multiple
         values, use a comma separated string, like so: 'gre,vxlan'
-    default: 'gre'
+    default: 'vxlan'
   NeutronTunnelIdRanges:
     description: |
         Comma-separated list of <tun_min>:<tun_max> tuples enumerating ranges
@@ -178,6 +181,23 @@ parameters:
     default: 'unset'
     description: Shared secret to prevent spoofing
     type: string
+  NeutronCorePlugin:
+    default: 'ml2'
+    description: |
+        The core plugin for Neutron. The value should be the entrypoint to be loaded
+        from neutron.core_plugins namespace.
+    type: string
+  NeutronServicePlugins:
+    default: "router"
+    description: |
+        Comma-seperated list of service plugin entrypoints to be loaded from the
+        neutron.service_plugins namespace.
+    type: comma_delimited_list
+  NeutronTypeDrivers:
+    default: "vxlan,vlan,flat,gre"
+    description: |
+        Comma-seperated list of network type driver entrypoints to be loaded.
+    type: comma_delimited_list
   NeutronMechanismDrivers:
     default: 'openvswitch'
     description: |
@@ -316,6 +336,7 @@ resources:
   NetIpMap:
     type: OS::TripleO::Network::Ports::NetIpMap
     properties:
+      ControlPlaneIp: {get_attr: [NovaCompute, networks, ctlplane, 0]}
       InternalApiIp: {get_attr: [InternalApiPort, ip_address]}
       StorageIp: {get_attr: [StoragePort, ip_address]}
       TenantIp: {get_attr: [TenantPort, ip_address]}
@@ -323,6 +344,7 @@ resources:
   NetworkConfig:
     type: OS::TripleO::Compute::Net::SoftwareConfig
     properties:
+      ControlPlaneIp: {get_attr: [NovaCompute, networks, ctlplane, 0]}
       InternalApiIpSubnet: {get_attr: [InternalApiPort, ip_subnet]}
       StorageIpSubnet: {get_attr: [StoragePort, ip_subnet]}
       TenantIpSubnet: {get_attr: [TenantPort, ip_subnet]}
@@ -343,6 +365,7 @@ resources:
       config:
         hiera:
           hierarchy:
+            - '"%{::uuid}"'
             - heat_config_%{::deploy_config_name}
             - compute
             - ceph_cluster # provided by CephClusterConfig
@@ -350,6 +373,7 @@ resources:
             - all_nodes # provided by allNodesConfig
             - RedHat # Workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1236143
             - common
+            - cisco_n1kv_data  # Optionally provided by ComputeExtraConfigPre
           datafiles:
             common:
               raw_data: {get_file: hieradata/common.yaml}
@@ -407,11 +431,15 @@ resources:
                 neutron_router_distributed: {get_input: neutron_router_distributed}
                 neutron_agent_mode: {get_input: neutron_agent_mode}
                 neutron_metadata_proxy_shared_secret: {get_input: neutron_metadata_proxy_shared_secret}
+                neutron::core_plugin: {get_input: neutron_core_plugin}
+                neutron::service_plugins: {get_input: neutron_service_plugins}
+                neutron::plugins::ml2::type_drivers: {get_input: neutron_type_drivers}
                 neutron_mechanism_drivers: {get_input: neutron_mechanism_drivers}
                 neutron_public_interface_raw_device: {get_input: neutron_public_interface_raw_device}
                 admin_password: {get_input: admin_password}
                 ntp::servers: {get_input: ntp_servers}
-                enable_package_install: {get_input: enable_package_install}
+                tripleo::packages::enable_install: {get_input: enable_package_install}
+                tripleo::packages::enable_upgrade: {get_input: enable_package_upgrade}
 
   NovaComputeDeployment:
     type: OS::TripleO::SoftwareDeployment
@@ -436,7 +464,7 @@ resources:
           list_join:
             - ''
             - - 'http://'
-              - {get_param: KeystoneHost}
+              - {get_param: KeystonePublicApiVirtualIP}
               - ':5000/v2.0'
         snmpd_readonly_user_name: {get_param: SnmpdReadonlyUserName}
         snmpd_readonly_user_password: {get_param: SnmpdReadonlyUserPassword}
@@ -485,6 +513,23 @@ resources:
         neutron_agent_mode: {get_param: NeutronAgentMode}
         neutron_router_distributed: {get_param: NeutronDVR}
         neutron_metadata_proxy_shared_secret: {get_param: NeutronMetadataProxySharedSecret}
+        neutron_core_plugin: {get_param: NeutronCorePlugin}
+        neutron_service_plugins:
+          str_replace:
+            template: "['PLUGINS']"
+            params:
+              PLUGINS:
+                list_join:
+                - "','"
+                - {get_param: NeutronServicePlugins}
+        neutron_type_drivers:
+          str_replace:
+            template: "['DRIVERS']"
+            params:
+              DRIVERS:
+                list_join:
+                - "','"
+                - {get_param: NeutronTypeDrivers}
         neutron_mechanism_drivers: {get_param: NeutronMechanismDrivers}
         neutron_public_interface_raw_device: {get_param: NeutronPublicInterfaceRawDevice}
         neutron_url:
@@ -497,7 +542,7 @@ resources:
           list_join:
             - ''
             - - 'http://'
-              - {get_param: NeutronHost}
+              - {get_param: KeystoneAdminApiVirtualIP}
               - ':35357/v2.0'
         admin_password: {get_param: AdminPassword}
         rabbit_username: {get_param: RabbitUserName}
@@ -510,6 +555,22 @@ resources:
             params:
               server: {get_param: NtpServer}
         enable_package_install: {get_param: EnablePackageInstall}
+        enable_package_upgrade: {get_attr: [UpdateDeployment, update_managed_packages]}
+
+  # Hook for site-specific additional pre-deployment config, e.g extra hieradata
+  ComputeExtraConfigPre:
+    depends_on: NovaComputeDeployment
+    type: OS::TripleO::ComputeExtraConfigPre
+    properties:
+        server: {get_resource: NovaCompute}
+
+  # Hook for site-specific additional pre-deployment config,
+  # applying to all nodes, e.g node registration/unregistration
+  NodeExtraConfig:
+    depends_on: ComputeExtraConfigPre
+    type: OS::TripleO::NodeExtraConfig
+    properties:
+        server: {get_resource: NovaCompute}
 
   UpdateConfig:
     type: OS::TripleO::Tasks::PackageUpdate
@@ -554,4 +615,9 @@ outputs:
       {get_resource: NovaCompute}
   config_identifier:
     description: identifier which changes if the node configuration may need re-applying
-    value: {get_attr: [NovaComputeDeployment, deploy_stdout]}
+    value:
+      list_join:
+      - ','
+      - - {get_attr: [NovaComputeDeployment, deploy_stdout]}
+        - {get_attr: [ComputeExtraConfigPre, deploy_stdout]}
+        - {get_param: UpdateIdentifier}

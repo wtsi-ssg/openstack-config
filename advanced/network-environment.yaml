@@ -6,25 +6,25 @@ resource_registry:
   OS::TripleO::CephStorage::Net::SoftwareConfig: /home/stack/templates/my-overcloud/network/config/single-nic-vlans/ceph-storage.yaml
 
 parameter_defaults:
-  ExternalAllocationPools: [{'start': '', 'end': ''}]
-  ExternalInterfaceDefaultRoute: 
-  ExternalNetCidr: 
-  ExternalNetworkVlanID: 
-  InternalApiAllocationPools: [{'start': '', 'end': ''}]
-  InternalApiNetCidr: 
-  InternalApiNetworkVlanID: 
-  StorageAllocationPools: [{'start': '', 'end': ''}]
-  StorageNetCidr: 
-  StorageNetworkVlanID: 
-  StorageMgmtAllocationPools: [{'start': '', 'end': ''}]
-  StorageMgmtNetCidr: 
-  StorageMgmtNetworkVlanID: 
-  TenantAllocationPools: [{'start': '', 'end': ''}]
-  TenantNetCidr: 
-  TenantNetworkVlanID: 
+  ExternalAllocationPools: [{'start': '172.31.4.18', 'end': '172.31.4.50'}]
+  ExternalInterfaceDefaultRoute: 172.31.4.1
+  ExternalNetCidr: 172.31.4.0/24
+  ExternalNetworkVlanID: 200
+  InternalApiAllocationPools: [{'start': '172.31.5.18', 'end': '172.31.5.254'}]
+  InternalApiNetCidr: 172.31.5.0/24
+  InternalApiNetworkVlanID: 201
+  StorageAllocationPools: [{'start': '172.31.6.18', 'end': '172.31.6.254'}]
+  StorageNetCidr: 172.31.6.0/24
+  StorageNetworkVlanID: 204
+  StorageMgmtAllocationPools: [{'start': '172.31.7.18', 'end': '172.31.7.254'}]
+  StorageMgmtNetCidr: 172.31.7.0/24
+  StorageMgmtNetworkVlanID: 205
+  TenantAllocationPools: [{'start': '172.22.240.18', 'end': '172.22.240.254'}]
+  TenantNetCidr: 172.22.240.0/20
+  TenantNetworkVlanID: 203
   #
   NeutronExternalNetworkBridge: "''"
-  NeutronBridgeMappings: 
+  NeutronBridgeMappings: datacentre:br-ex,br-eth1:br-eth1
   NeutronNetworkType: vxlan
-  NeutronNetworkVLANRanges: 
+  NeutronNetworkVLANRanges: datacentre:1:1000,br-eth1:208:208
   NeutronTunnelTypes: vxlan

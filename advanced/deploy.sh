@@ -2,6 +2,7 @@
 COMPUTESCALE=7
 CONTROLSCALE=3
 CEPHSCALE=3
+FLOATVLAN=208
 if [ "$FLOATVLAN" = "" ]; then
     echo "please set FLOATVLAN to tag number of floating IP network"
     exit 1

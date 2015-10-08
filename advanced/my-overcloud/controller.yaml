@@ -839,6 +839,9 @@ resources:
             - name: nova_novncproxy
               port: 6080
               net_binds: *public_binds
+              options:
+                - options balance source
+                - options timeout tunnel 1h
             - name: ceilometer
               port: 8777
               net_binds: *public_binds

@@ -13,16 +13,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-if !str2bool(hiera('enable_package_install', 'false')) {
-  case $::osfamily {
-    'RedHat': {
-      Package { provider => 'norpm' } # provided by tripleo-puppet
-    }
-    default: {
-      warning('enable_package_install option not supported.')
-    }
-  }
-}
+include tripleo::packages
 
 create_resources(sysctl::value, hiera('sysctl_settings'), {})
 
@@ -57,8 +48,9 @@ if $nova_enable_rbd_backend {
   include ::ceph::profile::client
 
   $client_keys = hiera('ceph::profile::params::client_keys')
+  $client_user = join(['client.', hiera('ceph_client_user_name')])
   class { '::nova::compute::rbd':
-    libvirt_rbd_secret_key => $client_keys['client.openstack']['secret'],
+    libvirt_rbd_secret_key => $client_keys[$client_user]['secret'],
   }
 }
 
@@ -87,6 +79,14 @@ class { 'neutron::agents::ml2::ovs':
   tunnel_types    => split(hiera('neutron_tunnel_types'), ','),
 }
 
+if 'cisco_n1kv' in hiera('neutron_mechanism_drivers') {
+  class { 'neutron::agents::n1kv_vem':
+    n1kv_source          => hiera('n1kv_vem_source', undef),
+    n1kv_version         => hiera('n1kv_vem_version', undef),
+  }
+}
+
+
 include ::ceilometer
 include ::ceilometer::agent::compute
 include ::ceilometer::agent::auth
@@ -100,3 +100,5 @@ class { 'snmp':
   agentaddress => ['udp:161','udp6:[::1]:161'],
   snmpd_config => [ join(['rouser ', hiera('snmpd_readonly_user_name')]), 'proc  cron', 'includeAllDisks  10%', 'master agentx', 'trapsink localhost public', 'iquerySecName internalUser', 'rouser internalUser', 'defaultMonitors yes', 'linkUpDownNotifications yes' ],
 }
+
+package_manifest{'/var/lib/tripleo/installed-packages/overcloud_compute': ensure => present}

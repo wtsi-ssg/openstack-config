@@ -77,8 +77,16 @@ parameters:
   ControllerExtraConfig:
     default: {}
     description: |
-      Controller specific configuration to inject into the cluster. Same
-      structure as ExtraConfig.
+      Controller specific hiera configuration data to inject into the cluster.
+    type: json
+  ControllerIPs:
+    default: {}
+    description: >
+      A network mapped list of IPs to assign to Controllers in the following form:
+      {
+        "internal_api": ["a.b.c.d", "e.f.g.h"],
+        ...
+      }
     type: json
   ControlVirtualInterface:
     default: 'br-ex'
@@ -97,6 +105,10 @@ parameters:
     description: If enabled services will be monitored by Pacemaker; it
       will manage VIPs as well, in place of Keepalived.
     type: boolean
+  EnableLoadBalancer:
+    default: true
+    description: Whether to deploy a LoadBalancer on the Controller
+    type: boolean
   EnableCephStorage:
     default: false
     description: Whether to deploy Ceph Storage (OSD) on the Controller
@@ -108,40 +120,8 @@ parameters:
   ExtraConfig:
     default: {}
     description: |
-      Additional configuration to inject into the cluster. The JSON should have
-      the following structure:
-        {"FILEKEY":
-          {"config":
-            [{"section": "SECTIONNAME",
-              "values":
-                [{"option": "OPTIONNAME",
-                  "value": "VALUENAME"
-                 }
-                ]
-             }
-            ]
-          }
-        }
-      For instance:
-        {"nova":
-          {"config":
-            [{"section": "default",
-              "values":
-                [{"option": "compute_manager",
-                  "value": "ironic.nova.compute.manager.ClusterComputeManager"
-                 }
-                ]
-             },
-             {"section": "cells",
-              "values":
-                [{"option": "driver",
-                  "value": "nova.cells.rpc_driver.CellsRPCDriver"
-                 }
-                ]
-             }
-            ]
-          }
-        }
+      Additional hieradata to inject into the cluster, note that
+      ControllerExtraConfig takes precedence over ExtraConfig.
     type: json
   Flavor:
     description: Flavor for control nodes to request when deploying.
@@ -253,6 +233,16 @@ parameters:
     description: Keystone key for signing tokens.
     type: string
     hidden: true
+  KeystoneNotificationDriver:
+    description: Comma-separated list of Oslo notification drivers used by Keystone
+    default: ['messaging']
+    type: comma_delimited_list
+  KeystoneNotificationFormat:
+    description: The Keystone notification format
+    default: 'basic'
+    type: string
+    constraints:
+      - allowed_values: [ 'basic', 'cadf' ]
   MysqlClusterUniquePart:
     description: A unique identifier of the MySQL cluster the controller is in.
     type: string
@@ -270,7 +260,7 @@ parameters:
   MysqlMaxConnections:
     description: Configures MySQL max_connections config setting
     type: number
-    default: 1024
+    default: 4096
   MysqlRootPassword:
     type: string
     hidden: true
@@ -313,6 +303,23 @@ parameters:
     default: 'unset'
     description: Shared secret to prevent spoofing
     type: string
+  NeutronCorePlugin:
+    default: 'ml2'
+    description: |
+        The core plugin for Neutron. The value should be the entrypoint to be loaded
+        from neutron.core_plugins namespace.
+    type: string
+  NeutronServicePlugins:
+    default: "router"
+    description: |
+        Comma-seperated list of service plugin entrypoints to be loaded from the
+        neutron.service_plugins namespace.
+    type: comma_delimited_list
+  NeutronTypeDrivers:
+    default: "vxlan,vlan,flat,gre"
+    description: |
+        Comma-seperated list of network type driver entrypoints to be loaded.
+    type: comma_delimited_list
   NeutronMechanismDrivers:
     default: 'openvswitch'
     description: |
@@ -335,7 +342,7 @@ parameters:
     description: Whether to enable l3-agent HA
     type: string
   NeutronNetworkType:
-    default: 'gre'
+    default: 'vxlan'
     description: The tenant network type for Neutron, either gre or vxlan.
     type: string
   NeutronNetworkVLANRanges:
@@ -377,7 +384,7 @@ parameters:
     description: If set, the public interface is a vlan with this device as the raw device.
     type: string
   NeutronTunnelTypes:
-    default: 'gre'
+    default: 'vxlan'
     description: |
         The tunnel types for the Neutron tenant network. To specify multiple
         values, use a comma separated string, like so: 'gre,vxlan'
@@ -437,6 +444,10 @@ parameters:
     default: 5672
     description: Set rabbit subscriber port, change this if using SSL
     type: number
+  RabbitFDLimit:
+    default: 4096
+    description: Configures RabbitMQ FD limit
+    type: string
   RedisVirtualIP:
     type: string
     default: ''  # Has to be here because of the ignored empty value bug
@@ -503,6 +514,9 @@ parameters:
   MysqlVirtualIP:
     type: string
     default: ''
+  KeystoneAdminApiVirtualIP:
+    type: string
+    default: ''
   KeystonePublicApiVirtualIP:
     type: string
     default: ''
@@ -527,6 +541,9 @@ parameters:
   Hostname:
     type: string
     default: '' # Defaults to Heat created hostname
+  NodeIndex:
+    type: number
+    default: 0
 
 resources:
 
@@ -549,31 +566,47 @@ resources:
   ExternalPort:
     type: OS::TripleO::Controller::Ports::ExternalPort
     properties:
+      NetName: external
+      IPPool: {get_param: ControllerIPs}
+      NodeIndex: {get_param: NodeIndex}
       ControlPlaneIP: {get_attr: [Controller, networks, ctlplane, 0]}
 
   InternalApiPort:
     type: OS::TripleO::Controller::Ports::InternalApiPort
     properties:
+      NetName: internal_api
+      IPPool: {get_param: ControllerIPs}
+      NodeIndex: {get_param: NodeIndex}
       ControlPlaneIP: {get_attr: [Controller, networks, ctlplane, 0]}
 
   StoragePort:
     type: OS::TripleO::Controller::Ports::StoragePort
     properties:
+      NetName: storage
+      IPPool: {get_param: ControllerIPs}
+      NodeIndex: {get_param: NodeIndex}
       ControlPlaneIP: {get_attr: [Controller, networks, ctlplane, 0]}
 
   StorageMgmtPort:
     type: OS::TripleO::Controller::Ports::StorageMgmtPort
     properties:
+      NetName: storage_mgmt
+      IPPool: {get_param: ControllerIPs}
+      NodeIndex: {get_param: NodeIndex}
       ControlPlaneIP: {get_attr: [Controller, networks, ctlplane, 0]}
 
   TenantPort:
     type: OS::TripleO::Controller::Ports::TenantPort
     properties:
+      NetName: tenant
+      IPPool: {get_param: ControllerIPs}
+      NodeIndex: {get_param: NodeIndex}
       ControlPlaneIP: {get_attr: [Controller, networks, ctlplane, 0]}
 
   NetIpMap:
     type: OS::TripleO::Network::Ports::NetIpMap
     properties:
+      ControlPlaneIp: {get_attr: [Controller, networks, ctlplane, 0]}
       ExternalIp: {get_attr: [ExternalPort, ip_address]}
       InternalApiIp: {get_attr: [InternalApiPort, ip_address]}
       StorageIp: {get_attr: [StoragePort, ip_address]}
@@ -581,17 +614,19 @@ resources:
       TenantIp: {get_attr: [TenantPort, ip_address]}
 
   NetIpSubnetMap:
-    type: OS::TripleO::Network::Ports::NetIpMap
+    type: OS::TripleO::Network::Ports::NetIpSubnetMap
     properties:
-      ExternalIp: {get_attr: [ExternalPort, ip_subnet]}
-      InternalApiIp: {get_attr: [InternalApiPort, ip_subnet]}
-      StorageIp: {get_attr: [StoragePort, ip_subnet]}
-      StorageMgmtIp: {get_attr: [StorageMgmtPort, ip_subnet]}
-      TenantIp: {get_attr: [TenantPort, ip_subnet]}
+      ControlPlaneIp: {get_attr: [Controller, networks, ctlplane, 0]}
+      ExternalIpSubnet: {get_attr: [ExternalPort, ip_subnet]}
+      InternalApiIpSubnet: {get_attr: [InternalApiPort, ip_subnet]}
+      StorageIpSubnet: {get_attr: [StoragePort, ip_subnet]}
+      StorageMgmtIpSubnet: {get_attr: [StorageMgmtPort, ip_subnet]}
+      TenantIpSubnet: {get_attr: [TenantPort, ip_subnet]}
 
   NetworkConfig:
     type: OS::TripleO::Controller::Net::SoftwareConfig
     properties:
+      ControlPlaneIp: {get_attr: [Controller, networks, ctlplane, 0]}
       ExternalIpSubnet: {get_attr: [ExternalPort, ip_subnet]}
       InternalApiIpSubnet: {get_attr: [InternalApiPort, ip_subnet]}
       StorageIpSubnet: {get_attr: [StoragePort, ip_subnet]}
@@ -697,6 +732,8 @@ resources:
         keystone_signing_certificate: {get_param: KeystoneSigningCertificate}
         keystone_ssl_certificate: {get_param: KeystoneSSLCertificate}
         keystone_ssl_certificate_key: {get_param: KeystoneSSLCertificateKey}
+        keystone_notification_driver: {get_param: KeystoneNotificationDriver}
+        keystone_notification_format: {get_param: KeystoneNotificationFormat}
         keystone_dsn:
           list_join:
             - ''
@@ -709,7 +746,7 @@ resources:
           list_join:
             - ''
             - - 'http://'
-              - {get_param: KeystonePublicApiVirtualIP}
+              - {get_param: KeystoneAdminApiVirtualIP}
               - ':35357/'
         keystone_auth_uri:
           list_join:
@@ -724,6 +761,7 @@ resources:
               - {get_param: KeystonePublicApiVirtualIP}
               - ':5000/v2.0/ec2tokens'
         enable_galera: {get_param: EnableGalera}
+        enable_load_balancer: {get_param: EnableLoadBalancer}
         enable_ceph_storage: {get_param: EnableCephStorage}
         enable_swift_storage: {get_param: EnableSwiftStorage}
         mysql_innodb_buffer_pool_size: {get_param: MysqlInnodbBufferPoolSize}
@@ -738,6 +776,23 @@ resources:
         neutron_metadata_proxy_shared_secret: {get_param: NeutronMetadataProxySharedSecret}
         neutron_agent_mode: {get_param: NeutronAgentMode}
         neutron_router_distributed: {get_param: NeutronDVR}
+        neutron_core_plugin: {get_param: NeutronCorePlugin}
+        neutron_service_plugins:
+          str_replace:
+            template: "['PLUGINS']"
+            params:
+              PLUGINS:
+                list_join:
+                - "','"
+                - {get_param: NeutronServicePlugins}
+        neutron_type_drivers:
+          str_replace:
+            template: "['DRIVERS']"
+            params:
+              DRIVERS:
+                list_join:
+                - "','"
+                - {get_param: NeutronTypeDrivers}
         neutron_mechanism_drivers: {get_param: NeutronMechanismDrivers}
         neutron_allow_l3agent_failover: {get_param: NeutronAllowL3AgentFailover}
         neutron_l3_ha: {get_param: NeutronL3HA}
@@ -794,7 +849,7 @@ resources:
           list_join:
             - ''
             - - 'http://'
-              - {get_param: KeystonePublicApiVirtualIP}
+              - {get_param: KeystoneAdminApiVirtualIP}
               - ':35357/v2.0'
         ceilometer_backend: {get_param: CeilometerBackend}
         ceilometer_metering_secret: {get_param: CeilometerMeteringSecret}
@@ -828,6 +883,12 @@ resources:
         rabbit_cookie: {get_param: RabbitCookie}
         rabbit_client_use_ssl: {get_param: RabbitClientUseSSL}
         rabbit_client_port: {get_param: RabbitClientPort}
+        # We need to force the following into a string because 'unlimited' is a valid setting
+        rabbit_fd_limit:
+          str_replace:
+            template: "'LIMIT'"
+            params:
+              LIMIT: {get_param: RabbitFDLimit}
         ntp_servers:
           str_replace:
             template: '["server"]'
@@ -842,6 +903,7 @@ resources:
         swift_min_part_hours: {get_param: SwiftMinPartHours}
         swift_mount_check: {get_param: SwiftMountCheck}
         enable_package_install: {get_param: EnablePackageInstall}
+        enable_package_upgrade: {get_attr: [UpdateDeployment, update_managed_packages]}
         swift_proxy_network: {get_attr: [NetIpMap, net_ip_map, {get_param: [ServiceNetMap, SwiftProxyNetwork]}]}
         swift_management_network: {get_attr: [NetIpMap, net_ip_map, {get_param: [ServiceNetMap, SwiftMgmtNetwork]}]}
         cinder_iscsi_network: {get_attr: [NetIpMap, net_ip_map, {get_param: [ServiceNetMap, CinderIscsiNetwork]}]}
@@ -871,8 +933,8 @@ resources:
         redis_vip: {get_param: RedisVirtualIP}
         memcached_network: {get_attr: [NetIpMap, net_ip_map, {get_param: [ServiceNetMap, MemcachedNetwork]}]}
         mysql_network: {get_attr: [NetIpMap, net_ip_map, {get_param: [ServiceNetMap, MysqlNetwork]}]}
-        ceph_cluster_network: {get_attr: [NetIpSubnetMap, net_ip_map, {get_param: [ServiceNetMap, CephClusterNetwork]}]}
-        ceph_public_network: {get_attr: [NetIpSubnetMap, net_ip_map, {get_param: [ServiceNetMap, CephPublicNetwork]}]}
+        ceph_cluster_network: {get_attr: [NetIpSubnetMap, net_ip_subnet_map, {get_param: [ServiceNetMap, CephClusterNetwork]}]}
+        ceph_public_network: {get_attr: [NetIpSubnetMap, net_ip_subnet_map, {get_param: [ServiceNetMap, CephPublicNetwork]}]}
         ceph_public_ip: {get_attr: [NetIpMap, net_ip_map, {get_param: [ServiceNetMap, CephPublicNetwork]}]}
 
   # Map heat metadata into hiera datafiles
@@ -883,7 +945,10 @@ resources:
       config:
         hiera:
           hierarchy:
+            - '"%{::uuid}"'
             - heat_config_%{::deploy_config_name}
+            - controller_extraconfig
+            - extraconfig
             - controller
             - object
             - swift_devices_and_proxy # provided by SwiftDevicesAndProxyConfig
@@ -895,7 +960,14 @@ resources:
             - RedHat # Workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1236143
             - common
             - cinder_netapp_data # Optionally provided by ControllerExtraConfigPre
+            - neutron_cisco_data # Optionally provided by ControllerExtraConfigPre
+            - cisco_n1kv_data # Optionally provided by ControllerExtraConfigPre
+            - neutron_bigswitch_data # Optionally provided by ControllerExtraConfigPre
           datafiles:
+            controller_extraconfig:
+              mapped_data: {get_param: ControllerExtraConfig}
+            extraconfig:
+              mapped_data: {get_param: ExtraConfig}
             common:
               raw_data: {get_file: hieradata/common.yaml}
             ceph:
@@ -912,6 +984,7 @@ resources:
                 bootstack_nodeid: {get_input: bootstack_nodeid}
 
                 # Pacemaker
+                enable_load_balancer: {get_input: enable_load_balancer}
                 hacluster_pwd: {get_input: pcsd_password}
 
                 # Swift
@@ -1003,7 +1076,7 @@ resources:
                   list_join:
                     - ''
                     - - 'http://'
-                      - {get_param: KeystonePublicApiVirtualIP}
+                      - {get_param: KeystoneAdminApiVirtualIP}
                       - ':35357/v2.0'
                 heat::keystone::domain::keystone_password: {get_input: admin_password}
                 heat::keystone::domain::domain_password: {get_input: heat_stack_domain_admin_password}
@@ -1020,6 +1093,12 @@ resources:
                 keystone::public_bind_host: {get_input: keystone_public_api_network}
                 keystone::admin_bind_host: {get_input: keystone_admin_api_network}
                 keystone::debug: {get_input: debug}
+                keystone::rabbit_userid: {get_input: rabbit_username}
+                keystone::rabbit_password: {get_input: rabbit_password}
+                keystone::rabbit_use_ssl: {get_input: rabbit_client_use_ssl}
+                keystone::rabbit_port: {get_input: rabbit_client_port}
+                keystone::notification_driver: {get_input: keystone_notification_driver}
+                keystone::notification_format: {get_input: keystone_notification_format}
                 # MongoDB
                 mongodb::server::bind_ip: {get_input: mongo_db_network}
                 # MySQL
@@ -1051,6 +1130,9 @@ resources:
                 neutron::agents::metadata::metadata_ip: {get_input: neutron_api_network}
                 neutron_agent_mode: {get_input: neutron_agent_mode}
                 neutron_router_distributed: {get_input: neutron_router_distributed}
+                neutron::core_plugin: {get_input: neutron_core_plugin}
+                neutron::service_plugins: {get_input: neutron_service_plugins}
+                neutron::plugins::ml2::type_drivers: {get_input: neutron_type_drivers}
                 neutron_mechanism_drivers: {get_input: neutron_mechanism_drivers}
                 neutron::server::allow_automatic_l3agent_failover: {get_input: neutron_allow_l3agent_failover}
                 neutron::server::l3_ha: {get_input: neutron_l3_ha}
@@ -1119,6 +1201,7 @@ resources:
                 # Rabbit
                 rabbitmq::node_ip_address: {get_input: rabbitmq_network}
                 rabbitmq::erlang_cookie: {get_input: rabbit_cookie}
+                rabbitmq::file_limit: {get_input: rabbit_fd_limit}
                 # Redis
                 redis::bind: {get_input: redis_network}
                 redis_vip: {get_input: redis_vip}
@@ -1130,12 +1213,21 @@ resources:
                 public_virtual_interface: {get_input: public_virtual_interface}
                 tripleo::loadbalancer::control_virtual_interface: {get_input: control_virtual_interface}
                 tripleo::loadbalancer::public_virtual_interface: {get_input: public_virtual_interface}
-                enable_package_install: {get_input: enable_package_install}
+                tripleo::packages::enable_install: {get_input: enable_package_install}
+                tripleo::packages::enable_upgrade: {get_input: enable_package_upgrade}
 
   # Hook for site-specific additional pre-deployment config, e.g extra hieradata
   ControllerExtraConfigPre:
     depends_on: ControllerDeployment
     type: OS::TripleO::ControllerExtraConfigPre
+    properties:
+        server: {get_resource: Controller}
+
+  # Hook for site-specific additional pre-deployment config,
+  # applying to all nodes, e.g node registration/unregistration
+  NodeExtraConfig:
+    depends_on: ControllerExtraConfigPre
+    type: OS::TripleO::NodeExtraConfig
     properties:
         server: {get_resource: Controller}
 
@@ -1212,6 +1304,7 @@ outputs:
     description: identifier which changes if the controller configuration may need re-applying
     value:
       list_join:
-      - ','
-      - - {get_attr: [ControllerDeployment, deploy_stdout]}
-        - {get_attr: [ControllerExtraConfigPre, deploy_stdout]}
+        - ','
+        - - {get_attr: [ControllerDeployment, deploy_stdout]}
+          - {get_attr: [ControllerExtraConfigPre, deploy_stdout]}
+          - {get_param: UpdateIdentifier}

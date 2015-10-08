@@ -101,6 +101,7 @@ resources:
   NetworkConfig:
     type: OS::TripleO::ObjectStorage::Net::SoftwareConfig
     properties:
+      ControlPlaneIp: {get_attr: [SwiftStorage, networks, ctlplane, 0]}
       InternalApiIpSubnet: {get_attr: [InternalApiPort, ip_subnet]}
       StorageIpSubnet: {get_attr: [StoragePort, ip_subnet]}
       StorageMgmtIpSubnet: {get_attr: [StorageMgmtPort, ip_subnet]}
@@ -108,6 +109,7 @@ resources:
   NetIpMap:
     type: OS::TripleO::Network::Ports::NetIpMap
     properties:
+      ControlPlaneIp: {get_attr: [SwiftStorage, networks, ctlplane, 0]}
       InternalApiIp: {get_attr: [InternalApiPort, ip_address]}
       StorageIp: {get_attr: [StoragePort, ip_address]}
       StorageMgmtIp: {get_attr: [StorageMgmtPort, ip_address]}
@@ -125,6 +127,7 @@ resources:
       config:
         hiera:
           hierarchy:
+            - '"%{::uuid}"'
             - heat_config_%{::deploy_config_name}
             - object
             - swift_devices_and_proxy # provided by SwiftDevicesAndProxyConfig
@@ -150,7 +153,8 @@ resources:
                 tripleo::ringbuilder::build_ring: True
                 snmpd_readonly_user_name: {get_input: snmpd_readonly_user_name}
                 snmpd_readonly_user_password: {get_input: snmpd_readonly_user_password}
-                enable_package_install: {get_input: enable_package_install}
+                tripleo::packages::enable_install: {get_input: enable_package_install}
+                tripleo::packages::enable_upgrade: {get_input: enable_package_upgrade}
 
 
   SwiftStorageHieraDeploy:
@@ -174,7 +178,16 @@ resources:
             params:
               server: {get_param: NtpServer}
         enable_package_install: {get_param: EnablePackageInstall}
+        enable_package_upgrade: {get_attr: [UpdateDeployment, update_managed_packages]}
         swift_management_network: {get_attr: [NetIpMap, net_ip_map, {get_param: [ServiceNetMap, SwiftMgmtNetwork]}]}
+
+  # Hook for site-specific additional pre-deployment config,
+  # applying to all nodes, e.g node registration/unregistration
+  NodeExtraConfig:
+    depends_on: SwiftStorageHieraDeploy
+    type: OS::TripleO::NodeExtraConfig
+    properties:
+        server: {get_resource: SwiftStorage}
 
   UpdateConfig:
     type: OS::TripleO::Tasks::PackageUpdate
@@ -218,4 +231,8 @@ outputs:
     value: {get_attr: [StorageMgmtPort, ip_address]}
   config_identifier:
     description: identifier which changes if the node configuration may need re-applying
-    value: {get_attr: [SwiftStorageHieraDeploy, deploy_stdout]}
+    value:
+      list_join:
+        - ','
+        - - {get_attr: [SwiftStorageHieraDeploy, deploy_stdout]}
+          - {get_param: UpdateIdentifier}

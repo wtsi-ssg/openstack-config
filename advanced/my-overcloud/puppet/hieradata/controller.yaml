@@ -51,10 +51,10 @@ swift::proxy::pipeline:
   - 'ratelimit'
   - 'tempurl'
   - 'formpost'
-  - 'staticweb'
   - 'ceilometer'
   - 'authtoken'
   - 'keystone'
+  - 'staticweb'
   - 'proxy-logging'
   - 'proxy-server'
 
@@ -64,19 +64,16 @@ swift::proxy::account_autocreate: true
 glance::api::pipeline: 'keystone'
 glance::registry::pipeline: 'keystone'
 glance::backend::swift::swift_store_create_container_on_put: true
-glance::backend::rbd::rbd_store_user: 'openstack'
 glance_file_pcmk_directory: '/var/lib/glance/images'
 
 # neutron
-neutron::core_plugin: 'ml2'
-neutron::service_plugins:
-  - 'neutron.services.l3_router.l3_router_plugin.L3RouterPlugin'
 neutron::server::sync_db: true
 neutron::agents::dhcp::dnsmasq_config_file: /etc/neutron/dnsmasq-neutron.conf
 
 # nova
 nova::notify_on_state_change: 'vm_and_task_state'
 nova::api::osapi_v3: true
+nova::scheduler::filter::ram_allocation_ratio: '1.0'
 
 # cinder
 cinder::scheduler::scheduler_driver: cinder.scheduler.filter_scheduler.FilterScheduler
@@ -93,6 +90,8 @@ heat::keystone::domain::domain_admin: 'heat_stack_domain_admin'
 # pacemaker
 pacemaker::corosync::cluster_name: 'tripleo_cluster'
 pacemaker::corosync::manage_fw: false
+pacemaker::resource_defaults::defaults:
+  resource-stickiness: { value: INFINITY }
 
 # horizon
 horizon::allowed_hosts: '*'

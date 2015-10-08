@@ -13,16 +13,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-if !str2bool(hiera('enable_package_install', 'false')) {
-  case $::osfamily {
-    'RedHat': {
-      Package { provider => 'norpm' } # provided by tripleo-puppet
-    }
-    default: {
-      warning('enable_package_install option not supported.')
-    }
-  }
-}
+include tripleo::packages
 
 create_resources(sysctl::value, hiera('sysctl_settings'), {})
 
@@ -46,3 +37,5 @@ if str2bool(hiera('ceph_osd_selinux_permissive', true)) {
 
 include ::ceph::profile::client
 include ::ceph::profile::osd
+
+package_manifest{'/var/lib/tripleo/installed-packages/overcloud_ceph': ensure => present}

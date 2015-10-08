@@ -13,16 +13,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-if !str2bool(hiera('enable_package_install', 'false')) {
-  case $::osfamily {
-    'RedHat': {
-      Package { provider => 'norpm' } # provided by tripleo-puppet
-    }
-    default: {
-      warning('enable_package_install option not supported.')
-    }
-  }
-}
+include tripleo::packages
+
+$enable_load_balancer = hiera('enable_load_balancer', true)
 
 if hiera('step') >= 1 {
 
@@ -30,11 +23,12 @@ if hiera('step') >= 1 {
 
   $controller_node_ips = split(hiera('controller_node_ips'), ',')
 
-  class { '::tripleo::loadbalancer' :
-    controller_hosts => $controller_node_ips,
-    manage_vip       => true,
+  if $enable_load_balancer {
+    class { '::tripleo::loadbalancer' :
+      controller_hosts => $controller_node_ips,
+      manage_vip       => true,
+    }
   }
-
 }
 
 if hiera('step') >= 2 {
@@ -182,8 +176,7 @@ if hiera('step') >= 2 {
   # pre-install swift here so we can build rings
   include ::swift
 
-  $cinder_enable_rbd_backend = hiera('cinder_enable_rbd_backend', false)
-  $enable_ceph = $cinder_enable_rbd_backend
+  $enable_ceph = hiera('ceph_storage_count', 0) > 0
 
   if $enable_ceph {
     class { 'ceph::profile::params':
@@ -207,8 +200,11 @@ if hiera('step') >= 2 {
       } -> Class['ceph::profile::osd']
     }
 
-    include ::ceph::profile::client
     include ::ceph::profile::osd
+  }
+
+  if str2bool(hiera('enable_external_ceph', 'false')) {
+    include ::ceph::profile::client
   }
 
 } #END STEP 2
@@ -275,6 +271,7 @@ if hiera('step') >= 3 {
   include ::nova::network::neutron
   include ::nova::vncproxy
   include ::nova::scheduler
+  include ::nova::scheduler::filter
 
   include ::neutron
   include ::neutron::server
@@ -293,10 +290,43 @@ if hiera('step') >= 3 {
   class { 'neutron::plugins::ml2':
     flat_networks => split(hiera('neutron_flat_networks'), ','),
     tenant_network_types => [hiera('neutron_tenant_network_type')],
+    mechanism_drivers   => [hiera('neutron_mechanism_drivers')],
   }
   class { 'neutron::agents::ml2::ovs':
     bridge_mappings => split(hiera('neutron_bridge_mappings'), ','),
     tunnel_types => split(hiera('neutron_tunnel_types'), ','),
+  }
+  if 'cisco_n1kv' in hiera('neutron_mechanism_drivers') {
+    include neutron::plugins::ml2::cisco::nexus1000v
+
+    class { 'neutron::agents::n1kv_vem':
+      n1kv_source          => hiera('n1kv_vem_source', undef),
+      n1kv_version         => hiera('n1kv_vem_version', undef),
+    }
+
+    class { 'n1k_vsm':
+      n1kv_source       => hiera('n1kv_vsm_source', undef),
+      n1kv_version      => hiera('n1kv_vsm_version', undef),
+      pacemaker_control => false,
+    }
+  }
+
+  if 'cisco_ucsm' in hiera('neutron_mechanism_drivers') {
+    include ::neutron::plugins::ml2::cisco::ucsm
+  }
+  if 'cisco_nexus' in hiera('neutron_mechanism_drivers') {
+    include ::neutron::plugins::ml2::cisco::nexus
+    include ::neutron::plugins::ml2::cisco::type_nexus_vxlan
+  }
+
+  if hiera('neutron_enable_bigswitch_ml2', false) {
+    include neutron::plugins::ml2::bigswitch::restproxy
+  }
+  neutron_l3_agent_config {
+    'DEFAULT/ovs_use_veth': value => hiera('neutron_ovs_use_veth', false);
+  }
+  neutron_dhcp_agent_config {
+    'DEFAULT/ovs_use_veth': value => hiera('neutron_ovs_use_veth', false);
   }
 
   Service['neutron-server'] -> Service['neutron-dhcp-service']
@@ -333,9 +363,14 @@ if hiera('step') >= 3 {
 
     $ceph_pools = hiera('ceph_pools')
     ceph::pool { $ceph_pools : }
+
+    $cinder_pool_requires = [Ceph::Pool[hiera('cinder_rbd_pool_name')]]
+
+  } else {
+    $cinder_pool_requires = []
   }
 
-  if $cinder_enable_rbd_backend {
+  if hiera('cinder_enable_rbd_backend', false) {
     $cinder_rbd_backend = 'tripleo_ceph'
 
     cinder_config {
@@ -343,10 +378,10 @@ if hiera('step') >= 3 {
     }
 
     cinder::backend::rbd { $cinder_rbd_backend :
-      rbd_pool        => 'volumes',
-      rbd_user        => 'openstack',
+      rbd_pool        => hiera('cinder_rbd_pool_name'),
+      rbd_user        => hiera('ceph_client_user_name'),
       rbd_secret_uuid => hiera('ceph::profile::params::fsid'),
-      require         => Ceph::Pool['volumes'],
+      require         => $cinder_pool_requires,
     }
   }
 
@@ -474,10 +509,17 @@ if hiera('step') >= 3 {
   include ::heat::engine
 
   # Horizon
+  if 'cisco_n1kv' in hiera('neutron_mechanism_drivers') {
+    $_profile_support = 'cisco'
+  } else {
+    $_profile_support = 'None'
+  }
+  $neutron_options   = {'profile_support' => $_profile_support }
   $vhost_params = { add_listen => false }
   class { 'horizon':
     cache_server_ip    => hiera('memcache_node_ips', '127.0.0.1'),
     vhost_extra_params => $vhost_params,
+    neutron_options    => $neutron_options,
   }
 
   $snmpd_user = hiera('snmpd_readonly_user_name')
@@ -503,3 +545,6 @@ if hiera('step') >= 4 {
   }
 
 } #END STEP 4
+
+$package_manifest_name = join(['/var/lib/tripleo/installed-packages/overcloud_controller', hiera('step')])
+package_manifest{$package_manifest_name: ensure => present}

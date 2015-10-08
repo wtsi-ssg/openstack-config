@@ -248,6 +248,16 @@ parameters:
     description: Keystone key for signing tokens.
     type: string
     hidden: true
+  KeystoneNotificationDriver:
+    description: Comma-separated list of Oslo notification drivers used by Keystone
+    default: ['messaging']
+    type: comma_delimited_list
+  KeystoneNotificationFormat:
+    description: The Keystone notification format
+    default: 'basic'
+    type: string
+    constraints:
+      - allowed_values: [ 'basic', 'cadf' ]
   MysqlClusterUniquePart:
     description: A unique identifier of the MySQL cluster the controller is in.
     type: string
@@ -265,7 +275,7 @@ parameters:
   MysqlMaxConnections:
     description: Configures MySQL max_connections config setting
     type: number
-    default: 1024
+    default: 4096
   MysqlRootPassword:
     type: string
     hidden: true
@@ -300,6 +310,23 @@ parameters:
     default: 'unset'
     description: Shared secret to prevent spoofing
     type: string
+  NeutronCorePlugin:
+    default: 'ml2'
+    description: |
+        The core plugin for Neutron. The value should be the entrypoint to be loaded
+        from neutron.core_plugins namespace.
+    type: string
+  NeutronServicePlugins:
+    default: "router"
+    description: |
+        Comma-seperated list of service plugin entrypoints to be loaded from the
+        neutron.service_plugins namespace.
+    type: comma_delimited_list
+  NeutronTypeDrivers:
+    default: "vxlan,vlan,flat,gre"
+    description: |
+        Comma-seperated list of network type driver entrypoints to be loaded.
+    type: comma_delimited_list
   NeutronMechanismDrivers:
     default: 'openvswitch'
     description: |
@@ -326,7 +353,7 @@ parameters:
     default: 'datacentre'
     description: If set, flat networks to configure in neutron plugins.
   NeutronNetworkType:
-    default: 'gre'
+    default: 'vxlan'
     description: The tenant network type for Neutron, either gre or vxlan.
     type: string
   NeutronNetworkVLANRanges:
@@ -368,7 +395,7 @@ parameters:
     description: If set, the public interface is a vlan with this device as the raw device.
     type: string
   NeutronTunnelTypes:
-    default: 'gre'
+    default: 'vxlan'
     description: |
         The tunnel types for the Neutron tenant network. To specify multiple
         values, use a comma separated string, like so: 'gre,vxlan'
@@ -428,6 +455,10 @@ parameters:
     default: 5672
     description: Set rabbit subscriber port, change this if using SSL
     type: number
+  RabbitFDLimit:
+    default: 4096
+    description: Configures RabbitMQ FD limit
+    type: string
   RedisVirtualIP:
     type: string
     default: ''  # Has to be here because of the ignored empty value bug
@@ -494,6 +525,9 @@ parameters:
   MysqlVirtualIP:
     type: string
     default: ''
+  KeystoneAdminApiVirtualIP:
+    type: string
+    default: ''
   KeystonePublicApiVirtualIP:
     type: string
     default: ''
@@ -514,6 +548,9 @@ parameters:
   Hostname:
     type: string
     default: '' # Defaults to Heat created hostname
+  NodeIndex:
+    type: number
+    default: 0
 
 resources:
 
@@ -561,6 +598,7 @@ resources:
   NetworkConfig:
     type: OS::TripleO::Controller::Net::SoftwareConfig
     properties:
+      ControlPlaneIp: {get_attr: [Controller, networks, ctlplane, 0]}
       ExternalIpSubnet: {get_attr: [ExternalPort, ip_subnet]}
       InternalApiIpSubnet: {get_attr: [InternalApiPort, ip_subnet]}
       StorageIpSubnet: {get_attr: [StoragePort, ip_subnet]}
@@ -662,6 +700,9 @@ resources:
           metadata_proxy_shared_secret: {get_input: neutron_metadata_proxy_shared_secret}
           agent_mode: {get_input: neutron_agent_mode}
           router_distributed: {get_input: neutron_router_distributed}
+          core_plugin: {get_input: neutron_core_plugin}
+          service_plugins: {get_input: neutron_service_plugins}
+          type_drivers: {get_input: neutron_type_drivers}
           mechanism_drivers: {get_input: neutron_mechanism_drivers}
           allow_automatic_l3agent_failover: {get_input: neutron_allow_l3agent_failover}
           l3_ha: {get_input: neutron_l3_ha}
@@ -909,6 +950,23 @@ resources:
         neutron_metadata_proxy_shared_secret: {get_param: NeutronMetadataProxySharedSecret}
         neutron_agent_mode: {get_param: NeutronAgentMode}
         neutron_router_distributed: {get_param: NeutronDVR}
+        neutron_core_plugin: {get_param: NeutronCorePlugin}
+        neutron_service_plugins:
+          str_replace:
+            template: "['PLUGINS']"
+            params:
+              PLUGINS:
+                list_join:
+                - "','"
+                - {get_param: NeutronServicePlugins}
+        neutron_type_drivers:
+          str_replace:
+            template: "['DRIVERS']"
+            params:
+              DRIVERS:
+                list_join:
+                - "','"
+                - {get_param: NeutronTypeDrivers}
         neutron_mechanism_drivers: {get_param: NeutronMechanismDrivers}
         neutron_allow_l3agent_failover: {get_param: NeutronAllowL3AgentFailover}
         neutron_l3_ha: {get_param: NeutronL3HA}

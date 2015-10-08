@@ -23,6 +23,12 @@ resource_registry:
   OS::TripleO::NodeExtraConfigPost: extraconfig/post_deploy/default.yaml
   OS::TripleO::Tasks::PackageUpdate: extraconfig/tasks/yum_update.yaml
 
+  # "AllNodes" Extra cluster config, runs on all nodes prior to the post_deploy
+  # phase, e.g when puppet is applied, but after the pre_deploy phase.  Useful when
+  # configuration with knowledge of all nodes in the cluster is required vs single
+  # node configuration in the pre_deploy step.
+  OS::TripleO::AllNodesExtraConfig: extraconfig/all_nodes/default.yaml
+
   # TripleO overcloud networks
   OS::TripleO::Network: network/networks.yaml
   OS::TripleO::VipConfig: vip-config.yaml
@@ -33,8 +39,19 @@ resource_registry:
   OS::TripleO::Network::Storage: network/noop.yaml
   OS::TripleO::Network::Tenant: network/noop.yaml
 
+  OS::TripleO::Network::Ports::NetVipMap: network/ports/net_ip_map.yaml
   OS::TripleO::Network::Ports::NetIpMap: network/ports/net_ip_map.yaml
+  OS::TripleO::Network::Ports::NetIpSubnetMap: network/ports/net_ip_subnet_map.yaml
   OS::TripleO::Network::Ports::NetIpListMap: network/ports/net_ip_list_map.yaml
+
+  # Port assignments for the VIPs
+  OS::TripleO::Network::Ports::CtlplaneVipPort: network/ports/ctlplane_vip.yaml
+  OS::TripleO::Network::Ports::ExternalVipPort: network/ports/noop.yaml
+  OS::TripleO::Network::Ports::InternalApiVipPort: network/ports/noop.yaml
+  OS::TripleO::Network::Ports::StorageVipPort: network/ports/noop.yaml
+  OS::TripleO::Network::Ports::StorageMgmtVipPort: network/ports/noop.yaml
+  OS::TripleO::Network::Ports::TenantVipPort: network/ports/noop.yaml
+  OS::TripleO::Network::Ports::RedisVipPort: network/ports/noop.yaml
 
   # Port assignments for the controller role
   OS::TripleO::Controller::Ports::ExternalPort: network/ports/noop.yaml
@@ -62,5 +79,5 @@ resource_registry:
   OS::TripleO::BlockStorage::Ports::StoragePort: network/ports/noop.yaml
   OS::TripleO::BlockStorage::Ports::StorageMgmtPort: network/ports/noop.yaml
 
-  # Port assignments for service virtual IPs for the controller role
-  OS::TripleO::Controller::Ports::RedisVipPort: network/ports/noop.yaml
+  # validation resources
+  OS::TripleO::AllNodes::Validation: all-nodes-validation.yaml

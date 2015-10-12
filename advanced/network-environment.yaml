@@ -23,8 +23,21 @@ parameter_defaults:
   TenantNetCidr: 172.22.240.0/20
   TenantNetworkVlanID: 203
   #
+  # 172.22.224.0/20
+  ControlPlaneSubnetCidr: "20"
+  # Gateway router for the provisioning network (or Undercloud IP if masquerading - we're not)
+  ControlPlaneDefaultRoute: 172.22.224.1
+  #
   NeutronExternalNetworkBridge: "''"
   NeutronBridgeMappings: datacentre:br-ex,br-eth1:br-eth1
   NeutronNetworkType: vxlan
   NeutronNetworkVLANRanges: datacentre:1:1000,br-eth1:208:208
   NeutronTunnelTypes: vxlan
+  #
+  # The IP address of the EC2 metadata server. Generally the IP of the Undercloud
+  #EC2MetadataIp: 172.31.5.17 <- on the overcloud nodes, this is on vlan201 not
+  # br-ex; therefore try an address which is directly reachable from the br-ex
+  # address (i.e. the provisioning network)
+  EC2MetadataIp: 172.22.224.17
+  # these are the DNS servers of the hypervisor (etc) nodes
+  DnsServers: ["172.18.255.1","172.18.255.2"]

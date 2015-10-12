@@ -107,6 +107,10 @@ resources:
                   addresses:
                   -
                     ip_netmask: {get_param: TenantIpSubnet}
+            - type: interface
+              name: nic2
+              use_dhcp: false
+              defroute: false
 
 outputs:
   OS::stack_id:

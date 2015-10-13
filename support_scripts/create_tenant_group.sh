@@ -14,7 +14,7 @@ fi
 
 if [ "$TENANT" = "" ]; then
   echo specify TENANT
-  exit 1
+  exit 2
 fi
 
 if [ "$ENABLED" = "" ]; then
@@ -54,6 +54,11 @@ keystone tenant-create --name "$TENANT" --description "$DESCRIPTION" \
 
 # throw away stderr because of forced DeprecationWarnings :(
 TENANTID=`keystone tenant-get "$TENANT" 2>/dev/null | awk '$2 ~/id/ {print $4}'`
+
+if [ "$TENANTID" = "" ]; then
+  echo "Tenant $TENANT not created"
+  exit 3
+fi
 
 nova quota-update --instances "$INSTANCES" --cores "$CORES" --ram "$RAM" \
                          "$TENANTID"

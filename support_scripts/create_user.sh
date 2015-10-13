@@ -8,12 +8,12 @@ fi
 
 if [ "$USERACCOUNT" = "" ]; then
   echo specify USERACCOUNT
-  exit 1
+  exit 2
 fi
 
 if [ "$TENANT" = "" ]; then
   echo specify TENANT
-  exit 1
+  exit 3
 fi
 
 if [ "$ENABLED" = "" ]; then
@@ -22,6 +22,10 @@ fi
 
 if [ "$NEWPASSWORD" = "" ]; then
     NEWPASSWORD="`pwgen -B -1`"
+fi
+if [ "$NEWPASSWORD" = "" ]; then
+  echo "No password set"
+  exit 4 ;
 fi
 
 if [ "$EMAIL" = "" ]; then

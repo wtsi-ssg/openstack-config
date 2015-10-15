@@ -5,7 +5,7 @@ export RAM="4096"
 for i in kr2
 do
   USERACCOUNT="$i" TENANT="$i"           ./create_user_and_tenant.sh
-  USERACCOUNT="$i" TENANT="hgi"          ./add_user_to_tenant.sh
-  USERACCOUNT="$i" TENANT="hgiarvados"   ./add_user_to_tenant.sh
+  USERACCOUNT="$i" TENANT="cancer"          ./add_user_to_tenant.sh
+  USERACCOUNT="$i" TENANT="cancerit"   ./add_user_to_tenant.sh
 done
 

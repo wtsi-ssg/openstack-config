@@ -1,0 +1,34 @@
+--- splash.html.orig	2015-10-21 13:54:48.138717000 +0100
++++ splash.html	2015-10-21 13:55:09.336843000 +0100
+@@ -2,6 +2,7 @@
+ <!DOCTYPE html>
+ <html lang="en" xml:lang="en" class="login-rcue">
+   <head>
++<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+     <meta content='text/html; charset=utf-8' http-equiv='Content-Type' />
+     <title>{% trans "Login" %} - {% site_branding %}</title>
+     {% include "_stylesheets.html" %}
+@@ -18,6 +19,23 @@
+           </div><!--/#brand-->
+         </div><!--/.span*-->
+         {% include 'auth/_login.html' %}
++<!-- motd script start -->
++<br>
++<div role="alert" id=motd style="width: 500px;"></div>
++<script>
++$(document).ready(function() {
++        $.get("http://openstack-beta.internal.sanger.ac.uk/motd.json",function(data) {
++                var el = document.getElementById("motd");
++                var offset = 80 + data.length * 20;
++                data.forEach(function(item) {
++                        el.innerHTML += "<p>" + item.msg + "</p>";
++                        $(".login").css("top",offset.toString() + "px");
++                        $("#motd").addClass("alert alert-success");
++                });
++        })
++});
++</script>
++<!-- motd script end -->
+       </div><!--/.row-fluid-->
+     </div><!--/.container-->
+   </body>

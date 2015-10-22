@@ -1,0 +1,35 @@
+---
+# controllers: edit haproxy.cfg then reload haproxy
+- hosts: set1-controllers
+  tasks:
+  - name: haproxy.cfg add Ansible marker
+    lineinfile: dest=/etc/haproxy/haproxy.cfg insertbefore="BOF" line="# Sanger Ansible modifies this file"
+  - name: haproxy.cfg add ceilometer client timeout
+    lineinfile: >
+        dest=/etc/haproxy/haproxy.cfg insertafter="^listen ceilometer" line="  timeout client 10m # ceilometer"
+    notify: reload haproxy
+  - name: haproxy.cfg add ceilometer server timeout
+    lineinfile: >
+        dest=/etc/haproxy/haproxy.cfg insertafter="^listen ceilometer" line="  timeout server 10m # ceilometer"
+    notify: reload haproxy
+  - name: haproxy.cfg add nova_novncproxy balance
+    lineinfile: >
+        dest=/etc/haproxy/haproxy.cfg insertafter="^listen nova_novncproxy" line="  balance source # nova_novncproxy"
+    notify:
+        - restart openstack-nova-novncproxy
+        - reload haproxy
+  - name: haproxy.cfg add nova_novncproxy timeout
+    lineinfile: >
+        dest=/etc/haproxy/haproxy.cfg insertafter="^listen nova_novncproxy" line="  timeout tunnel 1h # nova_novncproxy"
+    notify:
+        - restart openstack-nova-novncproxy
+        - reload haproxy
+  - name: haproxy.cfg remove nova_novncproxy httpchk
+    replace: dest=/etc/haproxy/haproxy.cfg regexp='(?s)^(?=listen nova_novncproxy\n( +[^\n]+\n)* +option)(listen nova_novncproxy.*?) *option httpchk GET /\n(.*)' replace='\2\3'
+
+  handlers:
+  - name: reload haproxy
+    service: name=haproxy state=reloaded
+  - name: restart openstack-nova-novncproxy
+    service: name=openstack-nova-novncproxy state=restarted
+

@@ -1,0 +1,21 @@
+---
+# configure /etc/rc.d/rc.local on all hosts
+- hosts: set1
+  tasks:
+  - name: install rc.sanger
+    copy:
+      src: files/rc.sanger
+      dest: /etc/rc.d
+      owner: root
+      mode: 0755
+  - name: add rc.sanger from rc.local
+    lineinfile:
+      dest: /etc/rc.d/rc.local
+      insertafter: EOF
+      line: "/etc/rc.d/rc.sanger"
+      mode: 0755
+  - name: run rc.sanger
+    command: /etc/rc.d/rc.local
+    args:
+      creates: /var/lock/subsys/local
+

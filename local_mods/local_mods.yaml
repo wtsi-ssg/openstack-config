@@ -1,0 +1,6 @@
+---
+- name: apply Sanger mods to deployed overcloud
+  hosts: set1
+- include: haproxy.yaml
+- include: horizon-motd.yaml
+- include: rclocal.yaml

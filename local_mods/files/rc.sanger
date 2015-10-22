@@ -1,0 +1,16 @@
+#!/bin/bash
+
+for i in `awk -F: '/: / && !/lo:/ {print $1}' < /proc/net/dev` ; do
+  if [ `ethtool -i $i | grep -c 'driver.*bnx2x'` -ne 0 ]; then
+    ethtool -K $i tx-checksum-ipv4 off > /dev/null
+    ethtool -K $i tx-checksum-ipv6 off > /dev/null
+  fi
+done
+
+for i in /proc/sys/net/ipv4/conf/*/rp_filter ; do
+  echo 0 > $i
+done
+
+for i in /proc/sys/net/ipv4/conf/*/forwarding ; do
+  echo 1 > $i
+done

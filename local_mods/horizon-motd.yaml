@@ -1,0 +1,15 @@
+---
+# controllers: modify horizon login page to show motd
+- hosts: set1-controllers
+  tasks:
+  - name: install motd
+    copy:
+      src: files/motd.json
+      dest: /var/www
+      owner: root
+      mode: 0644
+  - name: splash.html add motd machinery script
+    patch:
+      src: files/splash.html.patch
+      dest: /usr/share/openstack-dashboard/openstack_dashboard/dashboards/theme/templates/splash.html
+

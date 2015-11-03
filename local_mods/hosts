@@ -1,27 +1,54 @@
-[test]
-# this is it-admin2
-172.17.9.105
-
 [set1:children]
 set1-controllers
 set1-compute
 set1-ceph
 
+[set2:children]
+set2-controllers
+set2-compute
+set2-ceph
+
+# nova list | grep -i contr | sed -e 's/ctlplane=//' | awk '{printf ("%s\t#%s\n",$12,$4);}'
 [set1-controllers]
-172.31.1.22 # overcloud-controller-0
-172.31.1.26 # overcloud-controller-1
-172.31.1.24 # overcloud-controller-2
+172.22.193.8	#overcloud-controller-0
+172.22.193.11	#overcloud-controller-1
+172.22.193.13	#overcloud-controller-2
 
+#nova list | grep -i comp | sed -e 's/ctlplane=//' | awk '{printf ("%s\t#%s\n",$12,$4);}'
 [set1-compute]
-172.31.1.28 # overcloud-compute-0
-172.31.1.21 # overcloud-compute-1
-172.31.1.27 # overcloud-compute-2
-172.31.1.20 # overcloud-compute-3
-172.31.1.29 # overcloud-compute-4
-172.31.1.25 # overcloud-compute-5
-172.31.1.23 # overcloud-compute-6
+172.22.193.15	#overcloud-compute-0
+172.22.193.7	#overcloud-compute-1
+172.22.193.14	#overcloud-compute-2
+172.22.193.10	#overcloud-compute-3
+172.22.193.16	#overcloud-compute-4
+172.22.193.9	#overcloud-compute-5
+172.22.193.12	#overcloud-compute-6
 
+# nova list | grep -i ceph | sed -e 's/ctlplane=//' | awk '{printf ("%s\t#%s\n",$12,$4);}'
 [set1-ceph]
-172.31.2.25 # overcloud-cephstorage-0
-172.31.2.26 # overcloud-cephstorage-1
-172.31.2.19 # overcloud-cephstorage-2
+172.22.193.50	#overcloud-cephstorage-0
+172.22.193.5	#overcloud-cephstorage-1
+172.22.193.6	#overcloud-cephstorage-2
+
+# nova list | grep -i contr | sed -e 's/ctlplane=//' | awk '{printf ("%s\t#%s\n",$12,$4);}'
+[set2-controllers]
+172.22.225.141	#overcloud-controller-0
+172.22.225.137	#overcloud-controller-1
+172.22.225.138	#overcloud-controller-2
+
+#nova list | grep -i comp | sed -e 's/ctlplane=//' | awk '{printf ("%s\t#%s\n",$12,$4);}'
+[set2-compute]
+172.22.225.140	#overcloud-compute-0
+172.22.225.142	#overcloud-compute-1
+172.22.225.135	#overcloud-compute-2
+172.22.225.139	#overcloud-compute-3
+172.22.225.143	#overcloud-compute-4
+172.22.225.136	#overcloud-compute-5
+172.22.225.134	#overcloud-compute-6
+
+# nova list | grep -i ceph | sed -e 's/ctlplane=//' | awk '{printf ("%s\t#%s\n",$12,$4);}'
+[set2-ceph]
+172.22.225.132	#overcloud-cephstorage-0
+172.22.225.131	#overcloud-cephstorage-1
+172.22.225.133	#overcloud-cephstorage-2
+

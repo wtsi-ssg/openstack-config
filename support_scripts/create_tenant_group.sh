@@ -60,6 +60,9 @@ if [ "$TENANTID" = "" ]; then
   exit 3
 fi
 
+# add admin as a member so that CloudForms has visibility
+USERACCOUNT=admin ./add_user_to_tenant.sh
+
 nova quota-update --instances "$INSTANCES" --cores "$CORES" --ram "$RAM" \
                          "$TENANTID"
 

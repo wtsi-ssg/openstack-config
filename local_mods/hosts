@@ -40,7 +40,6 @@ set2-ceph
 [set2-compute]
 172.22.225.140	#overcloud-compute-0
 172.22.225.142	#overcloud-compute-1
-172.22.225.135	#overcloud-compute-2
 172.22.225.139	#overcloud-compute-3
 172.22.225.143	#overcloud-compute-4
 172.22.225.136	#overcloud-compute-5
@@ -51,4 +50,5 @@ set2-ceph
 172.22.225.132	#overcloud-cephstorage-0
 172.22.225.131	#overcloud-cephstorage-1
 172.22.225.133	#overcloud-cephstorage-2
+172.22.225.144  #overcloud-cephstorage-3
 

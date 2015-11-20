@@ -1,0 +1,18 @@
+---
+# controllers: edit haproxy.cfg then reload haproxy
+- hosts: set2-controllers
+  tasks:
+  - name: keystone timeout
+    replace: dest=/etc/keystone/keystone.conf regexp='^expiration = 3600$' replace='expiration = 28800'
+    notify:
+        - restart keystone
+  - name: horizon timeout
+    replace: dest=/usr/share/openstack-dashboard/openstack_dashboard/settings.py regexp='^SESSION_TIMEOUT = 1800$' replace='SESSION_TIMEOUT = 28800'
+    notify:
+        - restart horizon
+
+  handlers:
+  - name: restart keystone 
+    service: name=openstack-keystone state=restarted
+  - name: restart horizon
+    service: name=httpd state=restarted

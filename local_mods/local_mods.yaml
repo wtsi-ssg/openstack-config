@@ -4,3 +4,4 @@
 - include: haproxy.yaml
 - include: horizon-motd.yaml
 - include: rclocal.yaml
+- include: session_timeout.yaml
